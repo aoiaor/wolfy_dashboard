@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASF Team Capacity Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            min-height: 100vh; 
+            padding: 20px; 
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { color: white; text-align: center; font-size: 2.5em; margin-bottom: 5px; }
+        .subtitle { color: rgba(255,255,255,0.8); text-align: center; margin-bottom: 25px; }
+        
+        .stats-row { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 15px; 
+            margin-bottom: 25px; 
+        }
+        .stat-box { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 15px; 
+            text-align: center; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2); 
+        }
+        .stat-icon { font-size: 2em; margin-bottom: 10px; }
+        .stat-value { font-size: 3em; font-weight: bold; line-height: 1; }
+        .stat-label { font-size: 0.9em; color: #666; margin-top: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .blue { color: #2196F3; } 
+        .green { color: #4CAF50; } 
+        .orange { color: #FF9800; } 
+        .purple { color: #9C27B0; }
+        
+        .card { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2); 
+        }
+        .card-title { font-size: 1.5em; color: #333; margin-bottom: 20px; font-weight: bold; }
+        canvas { max-height: 320px; }
+        
+        .team-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+            gap: 15px; 
+        }
+        .member { 
+            background: #f8f9fa; 
+            padding: 18px; 
+            border-radius: 12px; 
+            border-left: 4px solid #2196F3; 
+        }
+        .member-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 10px; 
+        }
+        .member-name { font-size: 1.1em; font-weight: bold; color: #333; }
+        .member-rate { font-size: 1.3em; font-weight: bold; color: #4CAF50; }
+        .member-bar { height: 10px; background: #e0e0e0; border-radius: 5px; overflow: hidden; }
+        .member-fill { 
+            height: 100%; 
+            background: linear-gradient(90deg, #4CAF50, #8BC34A); 
+            border-radius: 5px; 
+            transition: width 0.5s; 
+        }
+        .member-detail { font-size: 0.9em; color: #666; margin-top: 8px; }
+        
+        .prediction { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 40px; 
+            border-radius: 15px; 
+            text-align: center; 
+        }
+        .prediction-value { font-size: 5em; font-weight: bold; margin: 15px 0; }
+        .prediction-label { font-size: 1.3em; opacity: 0.9; }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .manday-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 15px;
+        }
+        .manday-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #FF9800;
+        }
+        .manday-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .manday-name {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+        }
+        .manday-stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 12px;
+        }
+        .manday-stat {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            background: white;
+        }
+        .manday-stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            line-height: 1;
+        }
+        .manday-stat-label {
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 5px;
+            text-transform: uppercase;
+        }
+        .used { color: #FF9800; }
+        .remaining { color: #4CAF50; }
+        .manday-bar {
+            height: 12px;
+            background: #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+        }
+        .manday-bar-used {
+            height: 100%;
+            background: linear-gradient(90deg, #FF9800, #FFC107);
+            transition: width 0.5s;
+        }
+        .manday-bar-remaining {
+            height: 100%;
+            background: linear-gradient(90deg, #8BC34A, #4CAF50);
+            transition: width 0.5s;
+        }
+        
+        /* Workload vs Capacity */
+        .workload-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 15px;
+        }
+        .workload-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #2196F3;
+        }
+        .workload-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .workload-name {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+        }
+        .workload-stats {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .workload-stat {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            border-radius: 8px;
+            background: white;
+            font-size: 0.9em;
+        }
+        .workload-stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            line-height: 1;
+        }
+        .workload-stat-label {
+            font-size: 0.7em;
+            color: #666;
+            margin-top: 3px;
+            text-transform: uppercase;
+        }
+        .overload-positive { color: #ff6b6b; }
+        .overload-negative { color: #4CAF50; }
+        
+        /* Risk Assessment */
+        .risk-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        .risk-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid;
+            position: relative;
+        }
+        .risk-high { border-left-color: #ff6b6b; background: #fff5f5; }
+        .risk-medium { border-left-color: #ffa502; background: #fff9f0; }
+        .risk-low { border-left-color: #4CAF50; background: #f5fff5; }
+        .risk-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .risk-name {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+        }
+        .risk-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: bold;
+            color: white;
+        }
+        .risk-badge-high { background: #ff6b6b; }
+        .risk-badge-medium { background: #ffa502; }
+        .risk-badge-low { background: #4CAF50; }
+        .risk-details {
+            font-size: 0.9em;
+            color: #666;
+            line-height: 1.6;
+        }
+        .risk-warning {
+            margin-top: 10px;
+            padding: 8px;
+            background: rgba(255, 107, 107, 0.1);
+            border-radius: 6px;
+            font-size: 0.85em;
+            color: #ff6b6b;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .charts-grid { grid-template-columns: 1fr; }
+            .manday-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 ASF Team Capacity Dashboard</h1>
+        <p class="subtitle">Auto-refreshes every 5 minutes • Updated: <span id="time"></span></p>
+
+        <div class="stats-row">
+            <div class="stat-box">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value blue">28.7</div>
+                <div class="stat-label">Avg Issues/Sprint</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-icon">✅</div>
+                <div class="stat-value green">69.3%</div>
+                <div class="stat-label">Completion Rate</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-icon">👥</div>
+                <div class="stat-value orange">10</div>
+                <div class="stat-label">Team Members</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-icon">🏆</div>
+                <div class="stat-value purple">54</div>
+                <div class="stat-label">Best Sprint (S1)</div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="card">
+                <div class="card-title">📊 Issues Completed Per Sprint (15 Sprints)</div>
+                <canvas id="sprintChart"></canvas>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">📈 Completion Rate Trend</div>
+                <canvas id="rateChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">👥 Team Member Performance</div>
+            <div class="team-grid" id="teamGrid"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">⏱️ Man-Day Utilization (8 วัน/sprint • เฉลี่ย 3 Sprint ล่าสุด)</div>
+            <div class="manday-grid" id="mandayGrid"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">📊 Workload vs Capacity (Sprint 15 - ปัจจุบัน)</div>
+            <div class="workload-grid" id="workloadGrid"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">⚠️ Risk Assessment - ความเสี่ยงที่จะทำงานไม่เสร็จ</div>
+            <div class="risk-grid" id="riskGrid"></div>
+        </div>
+
+        <div class="prediction">
+            <div class="prediction-label">Next Sprint Recommended Capacity</div>
+            <div class="prediction-value">~29</div>
+            <div class="prediction-label">issues • Based on 15 sprints average</div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('time').textContent = new Date().toLocaleString('th-TH');
+
+        const team = [
+            {name: "Poom Chantarapornrat", done: 15, total: 22, rate: 68.2},
+            {name: "Patipan Mata", done: 96, total: 142, rate: 67.6},
+            {name: "Supakit Chawchumnum", done: 73, total: 111, rate: 65.8},
+            {name: "Pisit Piamwattanamongkol", done: 59, total: 91, rate: 64.8},
+            {name: "Pornpan Thongwithan", done: 43, total: 71, rate: 60.6},
+            {name: "Tanyarat Ruedeesirichot", done: 14, total: 24, rate: 58.3},
+            {name: "Nitida Jirachoknukroch", done: 22, total: 38, rate: 57.9},
+            {name: "Cherma Kaewkred", done: 7, total: 13, rate: 53.8},
+            {name: "Saranya Kaewsa-Ard", done: 16, total: 36, rate: 44.4},
+            {name: "Unassigned", done: 14, total: 33, rate: 42.4}
+        ];
+
+        const grid = document.getElementById('teamGrid');
+        team.forEach(m => {
+            grid.innerHTML += `<div class="member">
+                <div class="member-header">
+                    <div class="member-name">${m.name}</div>
+                    <div class="member-rate">${m.rate}%</div>
+                </div>
+                <div class="member-bar"><div class="member-fill" style="width:${m.rate}%"></div></div>
+                <div class="member-detail">${m.done} / ${m.total} issues completed</div>
+            </div>`;
+        });
+
+        const labels = ['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10','S11','S12','S13','S14','S15'];
+        const completed = [54,19,21,19,23,20,35,2,29,48,38,40,38,20,24];
+        const rates = [87.1,61.3,65.6,79.2,71.9,76.9,92.1,16.7,69.0,80.0,71.7,72.7,84.4,57.1,54.5];
+
+        new Chart(document.getElementById('sprintChart'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Issues Completed',
+                    data: completed,
+                    backgroundColor: 'rgba(33, 150, 243, 0.8)',
+                    borderColor: 'rgba(33, 150, 243, 1)',
+                    borderWidth: 2,
+                    borderRadius: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        new Chart(document.getElementById('rateChart'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Completion Rate %',
+                    data: rates,
+                    borderColor: 'rgba(76, 175, 80, 1)',
+                    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+                    borderWidth: 3,
+                    pointRadius: 7,
+                    pointBackgroundColor: 'rgba(76, 175, 80, 1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 100 } }
+            }
+        });
+
+        // Man-day data (8 days/sprint)
+        const mandayData = [
+            {name: "Tinnapat Pongtongmuang", used: 8.0, remaining: 0.0},
+            {name: "Saranya Kaewsa-Ard", used: 7.1, remaining: 0.9},
+            {name: "Supakit Chawchumnum", used: 6.3, remaining: 1.7},
+            {name: "Patipan Mata", used: 5.5, remaining: 2.5},
+            {name: "Pornpan Thongwithan", used: 4.9, remaining: 3.1},
+            {name: "Nitida Jirachoknukroch", used: 4.7, remaining: 3.3},
+            {name: "Pisit Piamwattanamongkol", used: 4.3, remaining: 3.7}
+        ];
+
+        const mandayGrid = document.getElementById('mandayGrid');
+        mandayData.forEach(m => {
+            mandayGrid.innerHTML += `<div class="manday-card">
+                <div class="manday-header">
+                    <div class="manday-name">${m.name}</div>
+                </div>
+                <div class="manday-stats">
+                    <div class="manday-stat">
+                        <div class="manday-stat-value used">${m.used}</div>
+                        <div class="manday-stat-label">Used</div>
+                    </div>
+                    <div class="manday-stat">
+                        <div class="manday-stat-value remaining">${m.remaining}</div>
+                        <div class="manday-stat-label">Remaining</div>
+                    </div>
+                </div>
+                <div class="manday-bar">
+                    <div class="manday-bar-used" style="width:${m.used * 10}%"></div>
+                    <div class="manday-bar-remaining" style="width:${m.remaining * 10}%"></div>
+                </div>
+            </div>`;
+        });
+
+        // Workload vs Capacity data (Sprint 15 - Using Average Days/Issue)
+        const workloadData = [
+            {name: "Patipan Mata", totalIssues: 16, doneIssues: 11, completionRate: 68.8, avgDaysPerIssue: 1.0, mandaysNeeded: 16.0, mandaysUsed: 5.5, mandaysRemaining: 2.5, overload: 8.0, risk: "MEDIUM"},
+            {name: "Pisit Piamwattanamongkol", totalIssues: 10, doneIssues: 3, completionRate: 30.0, avgDaysPerIssue: 1.41, mandaysNeeded: 14.1, mandaysUsed: 2.4, mandaysRemaining: 5.6, overload: 6.1, risk: "HIGH"},
+            {name: "Saranya Kaewsa-Ard", totalIssues: 3, doneIssues: 2, completionRate: 66.7, avgDaysPerIssue: 3.0, mandaysNeeded: 9.0, mandaysUsed: 5.3, mandaysRemaining: 2.7, overload: 1.0, risk: "MEDIUM"},
+            {name: "Supakit Chawchumnum", totalIssues: 9, doneIssues: 6, completionRate: 66.7, avgDaysPerIssue: 0.89, mandaysNeeded: 8.0, mandaysUsed: 5.3, mandaysRemaining: 2.7, overload: 0.0, risk: "MEDIUM"},
+            {name: "Pornpan Thongwithan", totalIssues: 2, doneIssues: 1, completionRate: 50.0, avgDaysPerIssue: 1.85, mandaysNeeded: 3.7, mandaysUsed: 4.0, mandaysRemaining: 4.0, overload: -4.3, risk: "LOW"}
+        ];
+
+        const workloadGrid = document.getElementById('workloadGrid');
+        workloadData.forEach(w => {
+            const overloadClass = w.overload > 0 ? 'overload-positive' : 'overload-negative';
+            const overloadText = w.overload > 0 ? `+${w.overload}d` : `${w.overload}d`;
+            
+            workloadGrid.innerHTML += `<div class="workload-card">
+                <div class="workload-header">
+                    <div class="workload-name">${w.name}</div>
+                </div>
+                <div class="workload-stats">
+                    <div class="workload-stat">
+                        <div class="workload-stat-value">${w.totalIssues}</div>
+                        <div class="workload-stat-label">Issues</div>
+                    </div>
+                    <div class="workload-stat">
+                        <div class="workload-stat-value">${w.doneIssues}</div>
+                        <div class="workload-stat-label">Done</div>
+                    </div>
+                    <div class="workload-stat">
+                        <div class="workload-stat-value ${overloadClass}">${overloadText}</div>
+                        <div class="workload-stat-label">Overload</div>
+                    </div>
+                </div>
+                <div class="manday-bar">
+                    <div class="manday-bar-used" style="width:${(w.mandaysUsed / 8) * 100}%"></div>
+                </div>
+                <div style="margin-top: 8px; font-size: 0.85em; color: #666;">
+                    Need ${w.mandaysNeeded}d (${w.avgDaysPerIssue}d/issue) | Used ${w.mandaysUsed}d / 8d
+                </div>
+            </div>`;
+        });
+
+        // Risk Assessment data
+        const riskData = [
+            {name: "Pisit Piamwattanamongkol", risk: "HIGH", completionRate: 30.0, issues: 10, done: 3, remaining: 7, warning: "เสร็จเพียง 30% ต้องเร่งทำอีก 7 issues"},
+            {name: "Patipan Mata", risk: "MEDIUM", completionRate: 68.8, issues: 16, done: 11, remaining: 5, warning: "งานเยอะ (16 issues) แต่ทำไปได้ 68.8%"},
+            {name: "Supakit Chawchumnum", risk: "MEDIUM", completionRate: 66.7, issues: 9, done: 6, remaining: 3, warning: "ต้องทำอีก 3 issues ให้เสร็จ"},
+            {name: "Saranya Kaewsa-Ard", risk: "MEDIUM", completionRate: 66.7, issues: 3, done: 2, remaining: 1, warning: "งานน้อย แต่แต่ละ issue ใช้เวลานาน (3.0 วัน/issue)"},
+            {name: "Pornpan Thongwithan", risk: "LOW", completionRate: 50.0, issues: 2, done: 1, remaining: 1, warning: "งานน้อย มีเวลาเพียงพอ"}
+        ];
+
+        const riskGrid = document.getElementById('riskGrid');
+        riskData.forEach(r => {
+            const riskClass = r.risk.toLowerCase();
+            const riskBadgeClass = `risk-badge-${riskClass}`;
+            const riskCardClass = `risk-${riskClass}`;
+            
+            riskGrid.innerHTML += `<div class="risk-card ${riskCardClass}">
+                <div class="risk-header">
+                    <div class="risk-name">${r.name}</div>
+                    <div class="risk-badge ${riskBadgeClass}">${r.risk}</div>
+                </div>
+                <div class="risk-details">
+                    <strong>${r.done}/${r.issues}</strong> issues done (${r.completionRate}%)<br>
+                    เหลืออีก <strong>${r.remaining}</strong> issues
+                </div>
+                ${r.risk === 'HIGH' ? `<div class="risk-warning">⚠️ ${r.warning}</div>` : ''}
+            </div>`;
+        });
+
+        // Auto refresh
+        setTimeout(() => location.reload(), 300000);
+    </script>
+</body>
+</html>
